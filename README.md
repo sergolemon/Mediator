@@ -1,2 +1,2 @@
 # Mediator
-Just my parody of NuGet package "MediatR" =)
+Just my parody of "MediatR" NuGet package =)
