@@ -30,10 +30,8 @@ namespace MediatorLib
                     type.IsAssignableTo(handlerInterfaceType)
                 );
 
-            string handlerMethodName = handlerInterfaceType.GetMethods().Single().Name;
-
             object handlerInstance = Activator.CreateInstance(handlerType)!;
-            MethodInfo handlerMethod = handlerType.GetMethod(handlerMethodName)!;
+            MethodInfo handlerMethod = handlerType.GetMethod("Handle")!;
 
             return await (Task<TResponse>)handlerMethod.Invoke(handlerInstance, new object[] { request })!;
         }
