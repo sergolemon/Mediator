@@ -21,7 +21,9 @@ namespace MediatorLib
         {
             Type requestType = request.GetType();
             Type responseType = typeof(TResponse);
-            Type handlerInterfaceType = typeof(IMediatorHandler<,>).MakeGenericType(requestType, responseType);
+            Type handlerInterfaceType = typeof(IMediatorHandler<,>)
+                .MakeGenericType(requestType, responseType);
+
             Type handlerType = _assemblies
                 .SelectMany(assembly => assembly.GetTypes())
                 .Single(type => 
@@ -31,9 +33,42 @@ namespace MediatorLib
                 );
 
             object handlerInstance = Activator.CreateInstance(handlerType)!;
-            MethodInfo handlerMethod = handlerType.GetMethod("Handle")!;
+            MethodInfo handleMethodInfo = handlerType.GetMethod("Handle")!;
+            RequestHandlerDelegate<TResponse> handleDelegate = 
+                async (request) => 
+                await (Task<TResponse>)handleMethodInfo.Invoke(handlerInstance, new object[] { request })!;
 
-            return await (Task<TResponse>)handlerMethod.Invoke(handlerInstance, new object[] { request })!;
+            Type pipelineInterfaceType = typeof(IMediatorPipelineBehavior<,>)
+                .MakeGenericType(requestType, responseType);
+
+            Type? pipelineType = _assemblies
+                .SelectMany(assembly => assembly.GetTypes())
+                .SingleOrDefault(type => 
+                    type.IsClass &&
+                    !type.IsGenericType &&
+                    !type.IsAbstract &&
+                    type.IsAssignableTo(pipelineInterfaceType)
+                ) ??
+                _assemblies
+                .SelectMany(assembly => assembly.GetTypes())
+                .SingleOrDefault(type =>
+                    type.IsClass &&
+                    type.IsGenericType &&
+                    !type.IsAbstract &&
+                    type.GetInterfaces()
+                        .Any(i => 
+                            i.IsGenericType &&
+                            i.GetGenericTypeDefinition()
+                                .IsAssignableTo(typeof(IMediatorPipelineBehavior<,>))
+                        )
+                )?.MakeGenericType(requestType, responseType);
+
+            object? pipelineInstance = pipelineType != null ? Activator.CreateInstance(pipelineType) : null;
+            MethodInfo? pipelineMethodInfo = pipelineType?.GetMethod("Handle")!;
+
+            return pipelineMethodInfo != null ? 
+                await (Task<TResponse>)pipelineMethodInfo.Invoke(pipelineInstance, new object[] { request, handleDelegate })! :
+                await (Task<TResponse>)handleMethodInfo.Invoke(handlerInstance, new object[] { request })!;
         }
     }
 }

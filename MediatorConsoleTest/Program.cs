@@ -27,9 +27,9 @@ MultiplyRequest multiplyRequest = new MultiplyRequest
 };
 
 int sum = await mediator.Send(sumRequest);
-int multiply = await mediator.Send(multiplyRequest);
-
 WriteLine($"a + b = {sum}");
+
+int multiply = await mediator.Send(multiplyRequest);
 WriteLine($"a * b = {multiply}");
 
 WriteLine();
